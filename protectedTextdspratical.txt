@@ -1,0 +1,774 @@
+problem1
+---------------------------------------------------------------------------------------------------------
+//AddClient
+
+import java.net.*;
+import java.rmi.*;
+import java.rmi.server.*;
+import java.util.*;
+
+public class AddClient {
+
+  public static void main(String[] args) throws RemoteException {
+    try {
+      String url = "rmi://127.0.0.1/AddServer";
+      AddServerIntf addServerIntf = (AddServerIntf) Naming.lookup(url);
+      Scanner sc = new Scanner(System.in);
+      System.out.println("Enter First Number : ");
+      double a = sc.nextDouble();
+      System.out.println("Enter Second Number : ");
+      double b = sc.nextDouble();
+      System.out.println("Result : " + addServerIntf.add(a, b));
+    } catch (Exception e) {
+      System.out.println("Exception" + e);
+    }
+  }
+}
+
+-------------------------------------------------------------------------------------------------------
+
+// AddServer
+import java.net.*;
+import java.rmi.*;
+import java.rmi.server.*;
+
+public class AddServer {
+
+  public static void main(String[] args) throws RemoteException {
+    try {
+      AddServerImpl addServerImpl = new AddServerImpl();
+      String url = "rmi://127.0.0.1/AddServer";
+      Naming.rebind(url, addServerImpl);
+    } catch (Exception e) {
+      System.out.println("Exception" + e);
+    }
+  }
+}
+--------------------------------------------------------------------------------------------------------
+
+//AddServerImpl
+
+import java.net.*;
+import java.rmi.*;
+import java.rmi.server.*;
+
+public class AddServerImpl
+  extends UnicastRemoteObject
+  implements AddServerIntf {
+
+  public AddServerImpl() throws RemoteException {}
+
+  public double add(double a, double b) throws RemoteException {
+    return a + b;
+  }
+}
+
+--------------------------------------------------------------------------------------------------------
+//AddServerIntf
+
+import java.net.*;
+import java.rmi.*;
+import java.rmi.server.*;
+
+public interface AddServerIntf extends Remote {
+  double add(double a, double b) throws RemoteException;
+}
+---------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+problem2
+----------------------------------------------------------------------------------------------------
+// client 
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class client {
+
+  public static void main(String[] args) throws Exception {
+    try {
+      Socket s = new Socket("127.0.0.1", 3333);
+      DataInputStream din = new DataInputStream(s.getInputStream());
+      DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+      Scanner sc = new Scanner(System.in);
+
+      String str = "", str2 = "";
+      while (!str.equals("stop")) {
+        System.out.print("Client : ");
+        str = sc.next();
+        dout.writeUTF(str);
+        str2 = din.readUTF();
+        System.out.println("Server : " + str2);
+      }
+      dout.close();
+      din.close();
+      sc.close();
+      s.close();
+    } catch (Exception e) {
+      System.out.println(e);
+    }
+  }
+}
+----------------------------------------------------------------------------------------------------
+
+// server
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class server {
+
+  public static void main(String[] args) throws Exception {
+    try {
+      ServerSocket ss = new ServerSocket(3333, 0, null);
+      Socket s = ss.accept();
+      DataInputStream din = new DataInputStream(s.getInputStream());
+      DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+      Scanner sc = new Scanner(System.in);
+
+      String str = "", str2 = "";
+      while (!str.equals("stop")) {
+        str2 = din.readUTF();
+        System.out.print("Client : " + str2);
+        System.out.println("Server : ");
+        str = sc.next();
+        dout.writeUTF(str);
+      }
+      sc.close();
+      din.close();
+      dout.close();
+      s.close();
+      ss.close();
+    } catch (Exception e) {
+      System.out.println(e);
+    }
+  }
+}
+----------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+problem3
+-----------------------------------------------------------------------------------
+ReverseModule.idl
+
+module ReverseModule{
+    interface Reverse{
+        string     (in string str);
+    };
+};
+---------------------------------------------------------------------------------
+//ReverseImpl
+
+import ReverseModule.ReversePOA;
+
+public class 
+
+extends ReversePOA {
+
+  public String reverse_string(String name) {
+    StringBuffer str = new StringBuffer(name);
+    str.reverse();
+    return ("Server Send " + str);
+  }
+}
+------------------------------------------------------------------------------
+
+//ReverseClient 
+
+import ReverseModule.*;
+import java.util.Scanner;
+import org.omg.CORBA.*;
+import org.omg.CosNaming.*;
+import org.omg.CosNaming.NamingContextPackage.*;
+import org.omg.PortableServer.*;
+
+class ReverseClient {
+
+  public static void main(String args[]) {
+    try {
+      // initialize the ORB
+      ORB orb = ORB.init(args, null);
+      NamingContextExt ncRef = NamingContextExtHelper.narrow(
+        orb.resolve_initial_references("NameService")
+      );
+      Reverse reverse = ReverseHelper.narrow(ncRef.resolve_str("Reverse"));
+
+      System.out.println("Enter String : ");
+      Scanner sc = new Scanner(System.in);
+      String str = sc.next();
+      String revStr = reverse.reverse_string(str);
+      System.out.println(revStr);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+}
+------------------------------------------------------------------------------
+//ReverseServer 
+
+import ReverseModule.*;
+import org.omg.CORBA.*;
+import org.omg.CosNaming.*;
+import org.omg.CosNaming.NamingContextPackage.*;
+import org.omg.PortableServer.*;
+
+public class ReverseServer {
+
+  public static void main(String[] args) {
+    try {
+      ORB orb = ORB.init(args, null);
+
+      POA rootPOA = POAHelper.narrow(orb.resolve_initial_references("RootPOA"));
+      rootPOA.the_POAManager().activate();
+
+      Reverse h_ref = ReverseHelper.narrow(
+        rootPOA.servant_to_reference(new ReverseImpl())
+      );
+
+      NamingContextExt ncRef = NamingContextExtHelper.narrow(
+        orb.resolve_initial_references("NameService")
+      );
+      NameComponent path[] = ncRef.to_name("Reverse");
+      ncRef.rebind(path, h_ref);
+
+      orb.run();
+    } catch (Exception e) {
+      System.out.println(e);
+    }
+  }
+}
+------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+problem4
+--------------------------------------------------------------------------------
+
+module ReverseModule{
+    interface Reverse{
+        double add(in double a,  in double b);
+    };
+};
+
+--------------------------------------------------------------------------------
+
+import ReverseModule.ReversePOA;
+
+public class ReverseImpl extends ReversePOA {
+
+  double add(double a, double b) {
+    return a + b;
+  }
+}
+
+--------------------------------------------------------------------------------
+
+import ReverseModule.*;
+import org.omg.CORBA.*;
+import org.omg.CosNaming.*;
+import org.omg.CosNaming.NamingContextPackage.*;
+import org.omg.PortableServer.*;
+
+public class ReverseServer {
+
+  public static void main(String[] args) {
+    try {
+      ORB orb = ORB.init(args, null);
+
+      POA rootPOA = POAHelper.narrow(orb.resolve_initial_references("RootPOA"));
+      rootPOA.the_POAManager().activate();
+
+      Reverse h_ref = ReverseHelper.narrow(
+        rootPOA.servant_to_reference(new ReverseImpl())
+      );
+
+      NamingContextExt ncRef = NamingContextExtHelper.narrow(
+        orb.resolve_initial_references("NameService")
+      );
+      NameComponent path[] = ncRef.to_name("Reverse");
+      ncRef.rebind(path, h_ref);
+
+      orb.run();
+    } catch (Exception e) {
+      System.out.println(e);
+    }
+  }
+}
+
+
+
+--------------------------------------------------------------------------------
+
+import ReverseModule.*;
+import java.util.Scanner;
+import org.omg.CORBA.*;
+import org.omg.CosNaming.*;
+import org.omg.CosNaming.NamingContextPackage.*;
+import org.omg.PortableServer.*;
+
+class ReverseClient {
+
+  public static void main(String args[]) {
+    try {
+      // initialize the ORB
+      ORB orb = ORB.init(args, null);
+      NamingContextExt ncRef = NamingContextExtHelper.narrow(
+        orb.resolve_initial_references("NameService")
+      );
+      Reverse reverse = ReverseHelper.narrow(ncRef.resolve_str("Reverse"));
+      Scanner sc = new Scanner(System.in);
+      System.out.print("Number 1: ");
+      double a = sc.nextDouble();
+      System.out.print("Number 2: ");
+      double b = sc.nextDouble();
+      double c = reverse.add(a, b);
+      System.out.println(c);
+    } catch (Exception e) {
+      System.out.println(e);
+    }
+  }
+}
+
+--------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+problem5
+--------------------------------------------------------------------------------
+import mpi.MPI;
+
+public class arrSum {
+
+  public static void main(String[] args) {
+    MPI.Init(args);
+    int rank = MPI.COMM_WORLD.Rank();
+    int size = MPI.COMM_WORLD.Size();
+    int unitsize = 5, root = 0;
+    int send_buffer[] = new int[unitsize * size];
+    int recieve_buffer[] = new int[unitsize];
+    int new_receiver_buffer[] = new int[size];
+    if (rank == root) {
+      int total = unitsize * size;
+      for (int i = 0; i < total; i++) send_buffer[i] = i + 1;
+    }
+    MPI.COMM_WORLD.Scatter(
+      send_buffer,
+      0,
+      unitsize,
+      MPI.INT,
+      recieve_buffer,
+      0,
+      unitsize,
+      MPI.INT,
+      root
+    );
+    for (int i = 1; i < unitsize; i++) recieve_buffer[0] += recieve_buffer[i];
+    System.out.println(
+      "Intermediate sum at  " + rank + " is " + recieve_buffer[0]
+    );
+    MPI.COMM_WORLD.Gather(
+      recieve_buffer,
+      0,
+      1,
+      MPI.INT,
+      new_receiver_buffer,
+      0,
+      1,
+      MPI.INT,
+      root
+    );
+    if (rank == root) {
+      int total = 0;
+      for (int i = 0; i < size; i++) total += new_receiver_buffer[i];
+      System.out.println("Total sum is " + total);
+    }
+    MPI.Finalize();
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+problem6
+--------------------------------------------------------------------
+
+//client.java
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class client extends Thread {
+
+  public static void main(String[] args) {
+    try {
+      // Connect to the server
+      while (true) {
+        Socket socket = new Socket("localhost", 12345);
+        DataInputStream inputStream = new DataInputStream(
+          socket.getInputStream()
+        );
+        DataOutputStream outputStream = new DataOutputStream(
+          socket.getOutputStream()
+        );
+
+        long clientTime = System.currentTimeMillis();
+        outputStream.writeLong(clientTime);
+        String acknowledgment = inputStream.readUTF();
+
+        System.out.println(acknowledgment);
+
+        long averageTime = inputStream.readLong();
+        System.out.println("-------------------------------------");
+        System.out.println("Current time : " + new Date(clientTime));
+        System.out.println("Adjusted time : " + new Date(averageTime));
+        System.out.println("-------------------------------------");
+
+        inputStream.close();
+        outputStream.close();
+        socket.close();
+
+        Thread.sleep(10000);
+      }
+    } catch (Exception e) {
+      System.out.println(e);
+    }
+  }
+}
+-----------------------------------------------------------------------
+
+
+//server.java
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class server extends Thread {
+
+  public static void main(String[] args) {
+    try {
+      ServerSocket serverSocket = new ServerSocket(12345);
+      List<Long> clientTimes = new ArrayList<>();
+      clientTimes.add(System.currentTimeMillis());
+      System.out.println("Server is running. Waiting for clients...");
+      while (clientTimes.size() < 1000) {
+        System.out.println("-------------------------------------");
+        Socket clientSocket = serverSocket.accept();
+        DataInputStream inputStream = new DataInputStream(
+          clientSocket.getInputStream()
+        );
+        DataOutputStream outputStream = new DataOutputStream(
+          clientSocket.getOutputStream()
+        );
+        System.out.println("listening to client timing ");
+
+        long clientTime = inputStream.readLong();
+        clientTimes.add(clientTime);
+
+        outputStream.writeUTF(
+          "Time received by the server." + new Date(clientTime)
+        );
+        long sum = 0, n = clientTimes.size();
+        for (int i = 0; i < n; i++) {
+          sum += clientTimes.get(i);
+        }
+
+        System.out.println("Number of client to be synchronized " + n);
+        System.out.println("-------------------------------------");
+
+        long averageTime = sum / clientTimes.size();
+        outputStream.writeLong(averageTime);
+        inputStream.close();
+        outputStream.close();
+        clientSocket.close();
+      }
+      serverSocket.close();
+    } catch (Exception e) {
+      System.out.println(e);
+    }
+  }
+}
+----------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+problem7
+----------------------------------------------------------------------------
+import java.util.*;
+
+public class ring {
+
+  public static void main(String[] args) {
+    int sender, receiver, token = 0;
+    Scanner sc = new Scanner(System.in);
+    System.out.print("Enter Number of process : ");
+    int n = sc.nextInt();
+    for (int i = 0; i < n; i++) System.out.print(" p" + i);
+    System.out.println(" p" + 0);
+    while (true) {
+      System.out.println("---------------------------------");
+      System.out.print("Enter Sender : ");
+      sender = sc.nextInt();
+      System.out.print("Enter Receiver : ");
+      receiver = sc.nextInt();
+      System.out.print("Token passes : ");
+      for (int i = token; i != sender; i = (i + 1) % n) {
+        System.out.print(i + "->");
+      }
+      System.out.println(sender);
+
+      System.out.print("Enter Data tobe send : ");
+      String data = sc.next();
+      for (int i = sender; i != receiver; i = (i + 1) % n) {
+        System.out.println(data + " forwarded by " + i);
+      }
+      System.out.println(data + " received at " + receiver);
+      token = sender;
+      System.out.println("---------------------------------");
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+problem8
+---------------------------------------------------------------------
+
+// bully
+
+import java.util.*;
+
+public class bully {
+
+  static boolean state[] = new boolean[1000];
+  static int n;
+
+  static void up(int process) {
+    if (state[process]) {
+      System.out.println("Process is already up");
+    } else {
+      state[process] = true;
+      mess(process);
+    }
+  }
+
+  public static void down(int process) {
+    if (!state[process]) {
+      System.out.println("Process is already down");
+    } else {
+      state[process] = false;
+      System.out.println("Process down successfully");
+    }
+  }
+
+  static void mess(int process) {
+    if (state[process]) {
+      System.out.println("Process" + process + " intiate election");
+      for (int i = process + 1; i < n; i++) {
+        System.out.println(
+          "election message send from process " + process + " to process " + i
+        );
+      }
+      for (int i = n - 1; i >= process; i--) {
+        if (state[i]) {
+          System.out.println("Coordinator message send from " + i + " to all");
+          break;
+        }
+      }
+    } else {
+      System.out.println("Process" + process + " is down.");
+    }
+  }
+
+  public static void main(String[] args) {
+    int choice = 0, process = 0;
+    Scanner sc = new Scanner(System.in);
+    System.out.print("Enter Number of Process : ");
+    n = sc.nextInt();
+    for (int i = 0; i < n; i++) {
+      state[i] = true;
+    }
+    System.out.println("There are " + n + "Processes are active : ");
+    for (int i = 0; i < n; i++) System.out.print("p" + i + " ");
+    System.out.println("\nProcess " + n + " is coordinator.");
+
+    do {
+      System.out.println("1. Up the process");
+      System.out.println("2. Down the process");
+      System.out.println("3. send message");
+      System.out.print("Enter the choice : ");
+      choice = sc.nextInt();
+
+      switch (choice) {
+        case 1:
+          System.out.print("Bring Up Process : ");
+          process = sc.nextInt();
+          up(process);
+          break;
+        case 2:
+          System.out.print("Bring Down Process : ");
+          process = sc.nextInt();
+          down(process);
+          break;
+        case 3:
+          System.out.print("Message send by Process : ");
+          process = sc.nextInt();
+          mess(process);
+          break;
+      }
+    } while (choice != 4);
+  }
+}
+
+-----------------------------------------------------------------------
+
+
+// ring
+
+import java.util.Scanner;
+
+public class ring {
+
+  static boolean state[] = new boolean[1000];
+  static int n;
+
+  public static void main(String[] args) {
+    int choice = 0;
+    Scanner sc = new Scanner(System.in);
+    System.out.print("Enter Number of Process : ");
+    n = sc.nextInt();
+    for (int i = 0; i < n; i++) {
+      state[i] = true;
+    }
+    int arr[] = new int[n];
+    for (int i = 0; i < n; i++) arr[i] = -1;
+    System.out.println("There are " + n + " Processes are  : ");
+    for (int i = 0; i < n; i++) System.out.print("p" + i + " ");
+    System.out.println("\nProcess " + (n - 1) + " fails");
+    state[n - 1] = false;
+
+    do {
+      System.out.println("1. Election");
+      System.out.println("2. Exit");
+      System.out.print("Enter Choice : ");
+      choice = sc.nextInt();
+
+      switch (choice) {
+        case 1:
+          {
+            System.out.print("Enter Process who initializing election : ");
+            int process = sc.nextInt();
+            int curr = process, j = 0;
+            do {
+              arr[j++] = curr;
+              int next = (curr + 1) % n;
+              while (!state[next]) next = (next + 1) % n;
+              System.out.println(
+                "process " + curr + " send message to " + next
+              );
+              curr = next;
+            } while (curr != process);
+            int maxi = -1;
+            for (int i = 0; i < n; i++) if (maxi < arr[i]) maxi = arr[i];
+            System.out.println("Process " + maxi + " selected as coordinaor");
+            curr = process;
+            do {
+              int next = (curr + 1) % n;
+              while (!state[next]) next = (next + 1) % n;
+              System.out.println(
+                "process " +
+                curr +
+                " pass cordinator (" +
+                maxi +
+                ") message to " +
+                next
+              );
+              curr = next;
+            } while (curr != process);
+            return;
+          }
+        case 2:
+          return;
+        default:
+          break;
+      }
+    } while (choice != 4);
+  }
+}
+---------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
